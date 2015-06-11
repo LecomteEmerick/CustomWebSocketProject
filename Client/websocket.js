@@ -8,12 +8,18 @@ function init()
 	serverResponse = document.getElementById("serverResponse");
 }
 
+function spam()
+{
+	socket.send("hello");
+}
+
 function connect()
 {
-	socket = new WebSocket("ws://10.250.4.155:80");
+	socket = new WebSocket("ws://127.0.0.1:80");
 	//
 	socket.onopen = function (event) {
 		debugLog.innerHTML="Connected";
+		//var timer=setInterval("spam()", 5);
 	};
 	socket.onmessage = function (event) {
 		debugLog.innerHTML="Message";

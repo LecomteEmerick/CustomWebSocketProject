@@ -8,7 +8,8 @@ using System.Net.Sockets;
 using System.Net;
 using System.Threading;
 using System.Security.Cryptography;
-using System.Net.WebSockets;
+using System.Drawing;
+using System.IO;
 
 namespace TestCustomWebSocket
 {
@@ -35,9 +36,21 @@ namespace TestCustomWebSocket
             string msg="";
             do{
                 if (msg != "" && connectedClient.Count > 0)
-                    sendMessageToClient(connectedClient[0], msg);
+                {
+                    Image newImage = Image.FromFile("C:/Users/elecomte/Documents/GitHub/CustomWebSocketProject/Ressources/daililama.jpg");
+                    sendMessageToClient(connectedClient[0], Encoding.UTF8.GetBytes(msg)); //imageToByteArray(newImage)
+                }
                 msg = Console.ReadLine();
             }while(msg != "/exit");
+        }
+
+        static byte[] imageToByteArray(System.Drawing.Image imageIn)
+        {
+            using (var ms = new MemoryStream())
+            {
+                imageIn.Save(ms, imageIn.RawFormat);
+                return ms.ToArray();
+            }
         }
 
         static void CheckClientConnection()
@@ -91,28 +104,79 @@ namespace TestCustomWebSocket
 
                     String data = getDecodedMessage(client,stream);
 
-                    Console.WriteLine(data);
-
-                    stream.Flush();
+                    interpreteMessage(data,client);
                 }
             }
+        }
+
+        static void sendMessageToClient(TcpClient client, Byte[] messageEncode)
+        {
+            NetworkStream stream = client.GetStream();
+
+
+            Byte[] header;
+            if (messageEncode.Length < 1 << 7)
+            {
+                header = new Byte[2];
+                header[1] = (Byte)messageEncode.Length;
+            }
+            else if (messageEncode.Length < 1 << 16)
+            {
+                header = new Byte[4];
+                header[1] = 127;
+                byte[] intBytes = intToByteArray(messageEncode.Length);
+                header[2] = intBytes[2];
+                header[3] = intBytes[3];
+            }else{
+                header = new Byte[4];
+                header[1] = 127;
+                byte[] intBytes = intToByteArray(messageEncode.Length);
+            }
+            header[0] = 129;
+
+            Byte[] key = new Byte[4];
+            new Random().NextBytes(key);
+
+            Byte[] messageSend = new Byte[header.Length + messageEncode.Length + key.Length ];
+            //
+
+            //
+            for (int i = 0; i < header.Length; i++)
+                messageSend[i] = header[i];
+            for (int i = 0; i < key.Length; i++)
+                messageSend[i + header.Length] = key[i];
+            for (int i = 0; i < messageEncode.Length; i++)
+                messageSend[i + key.Length + header.Length] = (Byte)(messageEncode[i] ^ key[i%4]);
+            //messageSend[header.Length + messageEncode.Length] = 0;
+            //
+            int offset = 0;
+            client.SendBufferSize = 8192;
+            int size = messageSend.Length < client.SendBufferSize ? messageSend.Length : client.SendBufferSize;
+            while (offset < messageSend.Length)
+            {
+                stream.Write(messageSend, offset, size);
+                offset += size;
+                size = offset + client.SendBufferSize < messageSend.Length ?  client.SendBufferSize : messageSend.Length - offset;
+            }
+        }
+
+        static byte[] intToByteArray(int value) {
+            byte[] intBytes = BitConverter.GetBytes(value);
+            if (BitConverter.IsLittleEndian)
+                Array.Reverse(intBytes);
+            return intBytes;
         }
 
         static void sendMessageToClient(TcpClient client, string message)
         {
             NetworkStream stream = client.GetStream();
             Byte[] messageEncode = Encoding.UTF8.GetBytes(message);
-
             Byte[] messageSend = new Byte[2 + messageEncode.Length];
-
             messageSend[0] = 129;
             messageSend[1] = (Byte)messageEncode.Length;
-
             for (int i = 0; i < messageEncode.Length; i++)
                 messageSend[i + 2] = messageEncode[i];
-
             stream.Write(messageSend, 0, messageSend.Length);
-            stream.Flush();
         }
 
 
@@ -123,8 +187,8 @@ namespace TestCustomWebSocket
             //
             if (message.Length < 2)
                 throw new Exception("Message trop court");
-            /*if (message[0] != 129)
-                throw new Exception("Entete bizarre");*/
+            if (message[0] != 129 && message[0] != 136)
+                throw new Exception("Entete bizarre");
             //
             int lengthMessage = message[1] - 128;
             int startByte = 2;
@@ -188,6 +252,21 @@ namespace TestCustomWebSocket
             } while (lengthCount < lengthMessage);
 
             return Encoding.UTF8.GetString(decoded);
+        }
+
+        static void interpreteMessage(string message,TcpClient client)
+        {
+            if (message == "�")
+            {
+                Console.WriteLine("disconnection");
+                client.Close();
+                connectedClient.Remove(client);
+            }
+            if(message.Contains("/w"))
+            {
+
+            }
+            Console.WriteLine(message);
         }
     }
 }
