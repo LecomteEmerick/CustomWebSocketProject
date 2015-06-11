@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+	<title>WebsocketCustom</title>
+	<script src="websocket.js"></script>
+<body onload="init()">
+	<h1>WebsocketCustom</h1>
+	<button type="button" onclick="connect()">Connect</button>
+
+	<div>
+		Debug :</br>
+		<p id="debugLog">No Error</p>
+	</div>
+	
+	<br>
+	<br>
+	
+	<div>
+		Message :<br>
+		<input id="message" type="text" name="message">
+		<button type="button" onclick="send()">Send</button>
+	</div>
+
+	<br>
+	<br>
+	
+	<div>
+		Server response :</br>
+		<p id="serverResponse">No response</p>
+	</div>
+
+</body>
+</html>
